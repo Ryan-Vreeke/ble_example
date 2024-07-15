@@ -2,11 +2,14 @@ package com.example.ble_example
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.annotation.TargetApi
 import android.app.Activity
 import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
@@ -42,9 +45,9 @@ private const val PERMISSION_REQUEST_CODE = 1
 private const val GATT_MAX_MTU_SIZE = 517
 
 
-
 @SuppressLint("MissingPermission")
 class MainActivity : AppCompatActivity() {
+    private val bm = BluetoothManager()
     private lateinit var binding: ActivityMainBinding
 
     private var isScanning = false
@@ -84,6 +87,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
     private val scanResults = mutableListOf<ScanResult>()
     private val scanResultAdapter: ScanResultAdapter by lazy{
         ScanResultAdapter(scanResults){result ->
@@ -98,31 +102,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun BluetoothGatt.printGattTable() {
-        if (services.isEmpty()) {
-            Log.i("printGattTable", "No service and characteristic available, call discoverServices() first?")
-            return
-        }
-        services.forEach { service ->
-            val characteristicsTable = service.characteristics.joinToString(
-                separator = "\n|--",
-                prefix = "|--"
-            ) { it.uuid.toString() }
-            Log.i("printGattTable", "\nService ${service.uuid}\nCharacteristics:\n$characteristicsTable"
-            )
-        }
-    }
-    private lateinit var bluetoothGatt : BluetoothGatt
-
-    private val gattCallback = object : BluetoothGattCallback() {
+    val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             val deviceAddress = gatt.device.address
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
                     Log.w("BluetoothGattCallback", "Successfully connected to $deviceAddress")
-                    bluetoothGatt = gatt
+
                     Handler(Looper.getMainLooper()).post {
-                        bluetoothGatt?.discoverServices()
+                        gatt.discoverServices()
                     }
                 } else if (newState == BluetoothProfile.STATE_DISCONNECTED) { /* Omitted for brevity */ }
             } else { /* Omitted for brevity */ }
@@ -131,10 +119,37 @@ class MainActivity : AppCompatActivity() {
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             with(gatt) {
                 Log.w("BluetoothGattCallback", "Discovered ${services.size} services for ${device.address}")
-                printGattTable()
-                //val batteryServiceUuid = UUID.fromString("0000180f-0000-1000-8000-00805f9b34fb")
-                // Consider connection setup as complete here
+
+                bm.bluetoothGatt = gatt
                 gatt.requestMtu(GATT_MAX_MTU_SIZE)
+
+
+                Handler(Looper.getMainLooper()).post {
+                    startNewActivity(device.name, gatt.services)
+                }
+            }
+        }
+
+        override fun onCharacteristicWrite(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int
+        ) {
+            with(characteristic) {
+                when (status) {
+                    BluetoothGatt.GATT_SUCCESS -> {
+                        Log.i("BluetoothGattCallback", "Wrote to characteristic $uuid")
+                    }
+                    BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH -> {
+                        Log.e("BluetoothGattCallback", "Write exceeded connection ATT MTU!")
+                    }
+                    BluetoothGatt.GATT_WRITE_NOT_PERMITTED -> {
+                        Log.e("BluetoothGattCallback", "Write not permitted for $uuid!")
+                    }
+                    else -> {
+                        Log.e("BluetoothGattCallback", "Characteristic write failed for $uuid, error: $status")
+                    }
+                }
             }
         }
 
@@ -142,6 +157,33 @@ class MainActivity : AppCompatActivity() {
             Log.w("BluetoothGattCallback", "ATT MTU changed to $mtu, success: ${status == BluetoothGatt.GATT_SUCCESS}")
         }
     }
+
+    fun startNewActivity(deviceName: String, services: List<BluetoothGattService>){
+        BluetoothServiceHolder.bluetoothGattServices = services
+        val intent = Intent(this, ConnectedActivity::class.java).apply{
+            putExtra("EXTRA_DEVICE_NAME", deviceName)
+        }
+
+        startActivity(intent)
+    }
+
+    fun write(){
+        var gatt = bm.bluetoothGatt
+        if(gatt == null)
+            return
+        //val batteryServiceUuid = UUID.fromString("0000180f-0000-1000-8000-00805f9b34fb")
+        // Consider connection setup as complete here
+        val actionServiceUUID = UUID.fromString("00002023-5948-4f3b-9e29-95c3322d9d6c")
+        val actionPacketCharUUID = UUID.fromString("00002128-5948-4f3b-9e29-95c3322d9d6c")
+        val actionPacketChar = gatt.getService(actionServiceUUID)?.getCharacteristic(actionPacketCharUUID)
+
+        if(bm.isWritable(actionPacketChar) == true){
+            val message = "HELLO"
+            bm.writeCharacteristic(actionPacketChar, message.toByteArray())
+            Log.i("GattWrite", "Message sent");
+        }
+    }
+
 
     override fun onResume() {
         super.onResume()
@@ -188,6 +230,8 @@ class MainActivity : AppCompatActivity() {
                 startBleScan()
             }
         }
+
+
 
         setupRecyclerView()
     }
@@ -264,6 +308,7 @@ class MainActivity : AppCompatActivity() {
 
     @UiThread
     private fun setupRecyclerView() {
+
         binding.scanResultsRecyclerView.apply {
             adapter = scanResultAdapter
             layoutManager = LinearLayoutManager(
@@ -324,6 +369,7 @@ class MainActivity : AppCompatActivity() {
                 with (result.device) {
                     Log.i("ScanCallback", "Found BLE device! Name: ${name ?: "Unnamed"}, address: $address")
                 }
+
                 scanResults.add(result)
                 scanResultAdapter.notifyItemInserted(scanResults.size - 1)
             }

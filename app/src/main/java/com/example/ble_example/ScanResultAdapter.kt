@@ -9,8 +9,6 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
 
-
-
 class ScanResultAdapter (
     private val items: List<ScanResult>,
     private val onClickListener:((device: ScanResult) -> Unit)
