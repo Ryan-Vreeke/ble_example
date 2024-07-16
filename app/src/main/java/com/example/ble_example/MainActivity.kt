@@ -232,7 +232,6 @@ class MainActivity : AppCompatActivity() {
         }
 
 
-
         setupRecyclerView()
     }
 

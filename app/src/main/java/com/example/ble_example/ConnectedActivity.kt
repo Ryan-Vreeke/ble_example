@@ -1,5 +1,6 @@
 package com.example.ble_example
 
+import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattService
 import android.os.Bundle
 import android.util.Log
@@ -16,6 +17,7 @@ object BluetoothServiceHolder {
 }
 
 class ConnectedActivity : AppCompatActivity() {
+
     private lateinit var binding: ConnectedBinding
     private val serviceList = mutableListOf<BluetoothGattService>()
     private val serviceResultAdapter: ServiceResultAdapter by lazy{
@@ -23,6 +25,7 @@ class ConnectedActivity : AppCompatActivity() {
             Log.i("ServiceList", "clicked ${service.uuid.toString()}")
         }
     }
+
 
     override fun onCreate(savedInstanceState: Bundle?){
         super.onCreate(savedInstanceState)

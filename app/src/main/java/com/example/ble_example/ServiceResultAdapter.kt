@@ -2,13 +2,25 @@ package com.example.ble_example
 
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattService
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.annotation.UiThread
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.SimpleItemAnimator
 import com.example.ble_example.ServiceResultAdapter.ViewHolder
+import com.example.ble_example.databinding.ActivityMainBinding
 
+
+private val charList = mutableListOf<BluetoothGattCharacteristic>()
+private val charResultAdapter: CharacteristicAdapter by lazy{
+    CharacteristicAdapter(charList){char ->
+        Log.i("Characteristic List", "clicked ${char.uuid.toString()}")
+    }
+}
 
 class ServiceResultAdapter(
     private val services: List<BluetoothGattService>,
@@ -23,6 +35,7 @@ class ServiceResultAdapter(
         )
         return ViewHolder(view, onClickListener)
     }
+
 
     override fun getItemCount() = services.size
 
@@ -41,7 +54,14 @@ class ServiceResultAdapter(
             view.findViewById<TextView>(R.id.uuid).text = service.uuid.toString()
             view.findViewById<TextView>(R.id.prop).text = "PROP"
 
-            view.setOnClickListener{onClickListener.invoke(service)}
+            view.findViewById<RecyclerView>(R.id.characteristic_recycler)
+
+            view.setOnClickListener{
+                charList.addAll(service.characteristics)
+                charResultAdapter.notifyDataSetChanged()
+
+                onClickListener.invoke(service)
+            }
         }
 
     }

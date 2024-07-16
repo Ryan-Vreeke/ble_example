@@ -28,23 +28,17 @@
         android:textSize="16sp"
         tools:text="UUID: xxxxxxxxxxxxxx"/>
 
-    <TextView
-        android:id="@+id/prop"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:layout_constraintTop_toBottomOf="@+id/uuid"
-        app:layout_constraintStart_toStartOf="parent"
-        android:textSize="16sp"
-        tools:text="Properties: READ,WRITE"/>
-
     <androidx.recyclerview.widget.RecyclerView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:id="@+id/characteristic_recycler"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/prop"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/uuid"
+        app:layout_constraintBottom_toBottomOf="parent"
         tools:listitem="@layout/characteristic_result"
         android:layout_marginTop="8dp"
-        android:layout_marginLeft="10dp"/>
+        />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
