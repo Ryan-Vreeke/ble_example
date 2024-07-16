@@ -1,7 +1,9 @@
 package com.example.ble_example
 
+import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattService
+import android.content.Context
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -14,18 +16,11 @@ import androidx.recyclerview.widget.SimpleItemAnimator
 import com.example.ble_example.ServiceResultAdapter.ViewHolder
 import com.example.ble_example.databinding.ActivityMainBinding
 
-
-private val charList = mutableListOf<BluetoothGattCharacteristic>()
-private val charResultAdapter: CharacteristicAdapter by lazy{
-    CharacteristicAdapter(charList){char ->
-        Log.i("Characteristic List", "clicked ${char.uuid.toString()}")
-    }
-}
-
 class ServiceResultAdapter(
     private val services: List<BluetoothGattService>,
-    private val onClickListener:((service: BluetoothGattService) -> Unit)
+    private val onClickListener: ((characteristic: BluetoothGattCharacteristic) -> Unit)
 ) : RecyclerView.Adapter<ServiceResultAdapter.ViewHolder>() {
+
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(
@@ -36,8 +31,9 @@ class ServiceResultAdapter(
         return ViewHolder(view, onClickListener)
     }
 
-
-    override fun getItemCount() = services.size
+    override fun getItemCount(): Int {
+       return services.size
+    }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val service = services[position]
@@ -46,56 +42,50 @@ class ServiceResultAdapter(
 
     class ViewHolder(
         private val view: View,
-        private val onClickListener: ((service: BluetoothGattService) -> Unit)
-    ): RecyclerView.ViewHolder(view){
+        private val onClickListener: ((characteristic: BluetoothGattCharacteristic) -> Unit)
+    ) : RecyclerView.ViewHolder(view) {
+        private var expand = false
 
-        fun bind(service: BluetoothGattService){
+        private lateinit var charView : RecyclerView
+        private val charList = mutableListOf<BluetoothGattCharacteristic>()
+        public val charResultAdapter: CharacteristicAdapter by lazy{
+            CharacteristicAdapter(charList, onClickListener)
+        }
+
+        fun bind(service: BluetoothGattService) {
             view.findViewById<TextView>(R.id.service_name).text = "service"
             view.findViewById<TextView>(R.id.uuid).text = service.uuid.toString()
-            view.findViewById<TextView>(R.id.prop).text = "PROP"
+            setupRecyclerView(view)
+            charView = view.findViewById(R.id.characteristic_recycler);
+            charView.visibility = View.GONE
 
-            view.findViewById<RecyclerView>(R.id.characteristic_recycler)
+            charList.addAll(service.characteristics)
+            charResultAdapter.notifyDataSetChanged()
 
-            view.setOnClickListener{
-                charList.addAll(service.characteristics)
-                charResultAdapter.notifyDataSetChanged()
-
-                onClickListener.invoke(service)
+            view.setOnClickListener {
+                expand = !expand
+                charView.visibility = if(expand) View.VISIBLE else View.GONE
             }
         }
 
-    }
+        @UiThread
+        private fun setupRecyclerView(view: View) {
 
-}
-
-class CharacteristicAdapter(
-    private val characteristics: List<BluetoothGattCharacteristic>,
-    private val onClickListener:((characteristic: BluetoothGattCharacteristic) -> Unit)
-
-) : RecyclerView.Adapter<CharacteristicAdapter.ViewHolder>(){
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CharacteristicAdapter.ViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(
-            R.layout.characteristic_result,
-            parent,
-            false
-        )
-        return CharacteristicAdapter.ViewHolder(view, onClickListener)
-    }
-
-    override fun getItemCount() = characteristics.size
-
-    override fun onBindViewHolder(holder: CharacteristicAdapter.ViewHolder, position: Int) {
-        val characteristic = characteristics[position]
-        holder.bind(characteristic)
-    }
-
-    class ViewHolder(
-        private val view: View,
-        private val onClickListener: ((characteristic: BluetoothGattCharacteristic) -> Unit)
-    ): RecyclerView.ViewHolder(view){
-        fun bind(characteristic: BluetoothGattCharacteristic){
-            view.setOnClickListener{onClickListener.invoke(characteristic)}
+            view.findViewById<RecyclerView>(R.id.characteristic_recycler).apply {
+                adapter = charResultAdapter
+                layoutManager = LinearLayoutManager(
+                    view.context,
+                    RecyclerView.VERTICAL,
+                    false
+                )
+                isNestedScrollingEnabled = false
+                itemAnimator.let {
+                    if (it is SimpleItemAnimator) {
+                        it.supportsChangeAnimations = false
+                    }
+                }
+            }
         }
     }
+
 }

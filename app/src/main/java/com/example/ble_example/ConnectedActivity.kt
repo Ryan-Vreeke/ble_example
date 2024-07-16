@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattService
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
 import android.widget.TextView
 import androidx.annotation.UiThread
 import androidx.appcompat.app.AppCompatActivity
@@ -14,15 +15,17 @@ import com.example.ble_example.databinding.ConnectedBinding
 
 object BluetoothServiceHolder {
     var bluetoothGattServices: List<BluetoothGattService>? = null
+    var blueToothManager: BluetoothManager? = null
 }
 
 class ConnectedActivity : AppCompatActivity() {
-
+    private var bm: BluetoothManager? = null
     private lateinit var binding: ConnectedBinding
+    private lateinit var disconnectBtn: Button
     private val serviceList = mutableListOf<BluetoothGattService>()
     private val serviceResultAdapter: ServiceResultAdapter by lazy{
-        ServiceResultAdapter(serviceList){service ->
-            Log.i("ServiceList", "clicked ${service.uuid.toString()}")
+        ServiceResultAdapter(serviceList){characteristic ->
+            Log.i("CharacteristicClick", "clicked ${characteristic.uuid.toString()}")
         }
     }
 
@@ -35,11 +38,16 @@ class ConnectedActivity : AppCompatActivity() {
         setupRecyclerView()
 
         val deviceName = intent.getStringExtra("EXTRA_DEVICE_NAME")
+        bm = BluetoothServiceHolder.blueToothManager
         BluetoothServiceHolder.bluetoothGattServices?.let { serviceList.addAll(it) }
         serviceResultAdapter.notifyDataSetChanged()
 
 
         findViewById<TextView>(R.id.device_name).text = deviceName
+        disconnectBtn = findViewById<Button>(R.id.disconnectBtn)
+        disconnectBtn.setOnClickListener{
+            finish()
+        }
     }
 
     @UiThread

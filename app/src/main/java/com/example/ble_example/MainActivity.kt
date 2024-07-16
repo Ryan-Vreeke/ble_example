@@ -35,6 +35,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.Observer
 import java.util.UUID
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -42,12 +43,11 @@ import androidx.recyclerview.widget.SimpleItemAnimator
 import com.example.ble_example.databinding.ActivityMainBinding
 
 private const val PERMISSION_REQUEST_CODE = 1
-private const val GATT_MAX_MTU_SIZE = 517
 
 
 @SuppressLint("MissingPermission")
 class MainActivity : AppCompatActivity() {
-    private val bm = BluetoothManager()
+    private val bm = BluetoothManager(this)
     private lateinit var binding: ActivityMainBinding
 
     private var isScanning = false
@@ -91,98 +91,28 @@ class MainActivity : AppCompatActivity() {
     private val scanResults = mutableListOf<ScanResult>()
     private val scanResultAdapter: ScanResultAdapter by lazy{
         ScanResultAdapter(scanResults){result ->
-            //User tapped on a scan result
             if(isScanning){
                 stopBleScan()
             }
+
             with(result.device){
                 Log.w("ScanResultAdapter", "Connecting to $address")
-                connectGatt(this@MainActivity, false, gattCallback)
+                bm.connect(this)
             }
         }
     }
 
-    val gattCallback = object : BluetoothGattCallback() {
-        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-            val deviceAddress = gatt.device.address
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                if (newState == BluetoothProfile.STATE_CONNECTED) {
-                    Log.w("BluetoothGattCallback", "Successfully connected to $deviceAddress")
 
-                    Handler(Looper.getMainLooper()).post {
-                        gatt.discoverServices()
-                    }
-                } else if (newState == BluetoothProfile.STATE_DISCONNECTED) { /* Omitted for brevity */ }
-            } else { /* Omitted for brevity */ }
-        }
-
-        override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-            with(gatt) {
-                Log.w("BluetoothGattCallback", "Discovered ${services.size} services for ${device.address}")
-
-                bm.bluetoothGatt = gatt
-                gatt.requestMtu(GATT_MAX_MTU_SIZE)
-
-
-                Handler(Looper.getMainLooper()).post {
-                    startNewActivity(device.name, gatt.services)
-                }
-            }
-        }
-
-        override fun onCharacteristicWrite(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic,
-            status: Int
-        ) {
-            with(characteristic) {
-                when (status) {
-                    BluetoothGatt.GATT_SUCCESS -> {
-                        Log.i("BluetoothGattCallback", "Wrote to characteristic $uuid")
-                    }
-                    BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH -> {
-                        Log.e("BluetoothGattCallback", "Write exceeded connection ATT MTU!")
-                    }
-                    BluetoothGatt.GATT_WRITE_NOT_PERMITTED -> {
-                        Log.e("BluetoothGattCallback", "Write not permitted for $uuid!")
-                    }
-                    else -> {
-                        Log.e("BluetoothGattCallback", "Characteristic write failed for $uuid, error: $status")
-                    }
-                }
-            }
-        }
-
-        override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
-            Log.w("BluetoothGattCallback", "ATT MTU changed to $mtu, success: ${status == BluetoothGatt.GATT_SUCCESS}")
-        }
-    }
-
-    fun startNewActivity(deviceName: String, services: List<BluetoothGattService>){
+    fun startNewActivity(services: List<BluetoothGattService>){
         BluetoothServiceHolder.bluetoothGattServices = services
-        val intent = Intent(this, ConnectedActivity::class.java).apply{
-            putExtra("EXTRA_DEVICE_NAME", deviceName)
-        }
-
+        BluetoothServiceHolder.blueToothManager = bm
+//        val intent = Intent(this, ConnectedActivity::class.java).apply{
+//            putExtra("EXTRA_DEVICE_NAME", deviceName)
+//        }
+        val intent = Intent(this,ConnectedActivity::class.java)
         startActivity(intent)
     }
 
-    fun write(){
-        var gatt = bm.bluetoothGatt
-        if(gatt == null)
-            return
-        //val batteryServiceUuid = UUID.fromString("0000180f-0000-1000-8000-00805f9b34fb")
-        // Consider connection setup as complete here
-        val actionServiceUUID = UUID.fromString("00002023-5948-4f3b-9e29-95c3322d9d6c")
-        val actionPacketCharUUID = UUID.fromString("00002128-5948-4f3b-9e29-95c3322d9d6c")
-        val actionPacketChar = gatt.getService(actionServiceUUID)?.getCharacteristic(actionPacketCharUUID)
-
-        if(bm.isWritable(actionPacketChar) == true){
-            val message = "HELLO"
-            bm.writeCharacteristic(actionPacketChar, message.toByteArray())
-            Log.i("GattWrite", "Message sent");
-        }
-    }
 
 
     override fun onResume() {
@@ -190,6 +120,7 @@ class MainActivity : AppCompatActivity() {
         if (!bluetoothAdapter.isEnabled) {
             promptEnableBluetooth()
         }
+        bm.bluetoothGatt?.disconnect()
     }
     /**
      * Prompts the user to enable Bluetooth via a system dialog.
@@ -231,6 +162,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        bm.connectionState.observe(this, Observer { services -> startNewActivity(services) })
 
         setupRecyclerView()
     }

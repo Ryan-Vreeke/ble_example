@@ -2,23 +2,34 @@ package com.example.ble_example
 
 import android.annotation.SuppressLint
 import android.annotation.TargetApi
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothProfile
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat.startActivity
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import java.util.UUID
 
-
+private const val GATT_MAX_MTU_SIZE = 517
 
 @SuppressLint("MissingPermission") // App's role to ensure permissions are available
-class BluetoothManager {
+class BluetoothManager (private val context: Context){
     public var bluetoothGatt : BluetoothGatt? = null
+    public fun connect(device: BluetoothDevice){
+        bluetoothGatt = device.connectGatt(context, false, gattCallback)
+    }
+
+    private val _connectionState = MutableLiveData<List<BluetoothGattService>>()
+    val connectionState: LiveData<List<BluetoothGattService>> = _connectionState
 
     private fun BluetoothGatt.printGattTable(){
         if (services.isEmpty()) {
@@ -36,16 +47,77 @@ class BluetoothManager {
 
     }
 
-    fun BluetoothGattCharacteristic.isReadable(): Boolean =
+
+    val gattCallback = object : BluetoothGattCallback() {
+        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            val deviceAddress = gatt.device.address
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                if (newState == BluetoothProfile.STATE_CONNECTED) {
+                    Log.w("BluetoothGattCallback", "Successfully connected to $deviceAddress")
+
+                    Handler(Looper.getMainLooper()).post {
+                        gatt.discoverServices()
+                    }
+                } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    Log.w("BluetoothGattCallback", "Disconnected from $deviceAddress")
+                    gatt.close()
+                    bluetoothGatt = null
+                }
+            } else { /* Omitted for brevity */ }
+        }
+
+        override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+            with(gatt) {
+                Log.w("BluetoothGattCallback", "Discovered ${services.size} services for ${device.address}")
+
+                bluetoothGatt = gatt
+                gatt.requestMtu(GATT_MAX_MTU_SIZE)
+
+                Handler(Looper.getMainLooper()).post {
+//                    startNewActivity(device.name, gatt.services)
+                    _connectionState.postValue(gatt.services)
+                }
+            }
+        }
+
+        override fun onCharacteristicWrite(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int
+        ) {
+            with(characteristic) {
+                when (status) {
+                    BluetoothGatt.GATT_SUCCESS -> {
+                        Log.i("BluetoothGattCallback", "Wrote to characteristic $uuid")
+                    }
+                    BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH -> {
+                        Log.e("BluetoothGattCallback", "Write exceeded connection ATT MTU!")
+                    }
+                    BluetoothGatt.GATT_WRITE_NOT_PERMITTED -> {
+                        Log.e("BluetoothGattCallback", "Write not permitted for $uuid!")
+                    }
+                    else -> {
+                        Log.e("BluetoothGattCallback", "Characteristic write failed for $uuid, error: $status")
+                    }
+                }
+            }
+        }
+
+        override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+            Log.w("BluetoothGattCallback", "ATT MTU changed to $mtu, success: ${status == BluetoothGatt.GATT_SUCCESS}")
+        }
+    }
+
+    private fun BluetoothGattCharacteristic.isReadable(): Boolean =
         containsProperty(BluetoothGattCharacteristic.PROPERTY_READ)
 
-    fun BluetoothGattCharacteristic.isWritable(): Boolean =
+    private fun BluetoothGattCharacteristic.isWritable(): Boolean =
         containsProperty(BluetoothGattCharacteristic.PROPERTY_WRITE)
 
-    fun BluetoothGattCharacteristic.isWritableWithoutResponse(): Boolean =
+    private fun BluetoothGattCharacteristic.isWritableWithoutResponse(): Boolean =
         containsProperty(BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)
 
-    fun BluetoothGattCharacteristic.containsProperty(property: Int): Boolean {
+    private fun BluetoothGattCharacteristic.containsProperty(property: Int): Boolean {
         return properties and property != 0
     }
 
@@ -54,8 +126,16 @@ class BluetoothManager {
         return characteristic?.isWritable()
     }
 
+    public fun write(characteristic: BluetoothGattCharacteristic){
+        if(characteristic.isWritable() == true){
+            val message = "HELLO"
+            writeCharacteristic(characteristic, message.toByteArray())
+            Log.i("GattWrite", "Message sent");
+        }
+    }
 
-    public fun writeCharacteristic(characteristic: BluetoothGattCharacteristic?, payload: ByteArray){
+
+    private fun writeCharacteristic(characteristic: BluetoothGattCharacteristic?, payload: ByteArray){
         if(characteristic == null)
             return
 
