@@ -103,13 +103,13 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    fun startNewActivity(services: List<BluetoothGattService>){
+    fun startNewActivity(services: List<BluetoothGattService>, deviceName: String){
         BluetoothServiceHolder.bluetoothGattServices = services
         BluetoothServiceHolder.blueToothManager = bm
-//        val intent = Intent(this, ConnectedActivity::class.java).apply{
-//            putExtra("EXTRA_DEVICE_NAME", deviceName)
-//        }
-        val intent = Intent(this,ConnectedActivity::class.java)
+        val intent = Intent(this, ConnectedActivity::class.java).apply{
+            putExtra("EXTRA_DEVICE_NAME", deviceName)
+        }
+
         startActivity(intent)
     }
 
@@ -120,8 +120,8 @@ class MainActivity : AppCompatActivity() {
         if (!bluetoothAdapter.isEnabled) {
             promptEnableBluetooth()
         }
-        bm.bluetoothGatt?.disconnect()
     }
+
     /**
      * Prompts the user to enable Bluetooth via a system dialog.
      *
@@ -162,7 +162,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        bm.connectionState.observe(this, Observer { services -> startNewActivity(services) })
+        bm.connectionState.observe(this, Observer {
+            connectionPair -> startNewActivity(connectionPair.first, connectionPair.second)
+        })
 
         setupRecyclerView()
     }
@@ -309,9 +311,6 @@ class MainActivity : AppCompatActivity() {
             Log.e("ScanCallback", "onScanFailed: code $errorCode")
         }
     }
-
-
-
 }
 
 /**

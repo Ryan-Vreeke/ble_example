@@ -26,6 +26,7 @@ class ConnectedActivity : AppCompatActivity() {
     private val serviceResultAdapter: ServiceResultAdapter by lazy{
         ServiceResultAdapter(serviceList){characteristic ->
             Log.i("CharacteristicClick", "clicked ${characteristic.uuid.toString()}")
+            bm?.write(characteristic)
         }
     }
 
@@ -46,6 +47,7 @@ class ConnectedActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.device_name).text = deviceName
         disconnectBtn = findViewById<Button>(R.id.disconnectBtn)
         disconnectBtn.setOnClickListener{
+            bm?.disconnect()
             finish()
         }
     }

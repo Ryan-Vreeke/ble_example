@@ -23,13 +23,10 @@ private const val GATT_MAX_MTU_SIZE = 517
 
 @SuppressLint("MissingPermission") // App's role to ensure permissions are available
 class BluetoothManager (private val context: Context){
-    public var bluetoothGatt : BluetoothGatt? = null
-    public fun connect(device: BluetoothDevice){
-        bluetoothGatt = device.connectGatt(context, false, gattCallback)
-    }
+    var bluetoothGatt : BluetoothGatt? = null
 
-    private val _connectionState = MutableLiveData<List<BluetoothGattService>>()
-    val connectionState: LiveData<List<BluetoothGattService>> = _connectionState
+    private val _connectionState = MutableLiveData<Pair<List<BluetoothGattService>, String>>()
+    val connectionState: LiveData<Pair<List<BluetoothGattService>, String>> = _connectionState
 
     private fun BluetoothGatt.printGattTable(){
         if (services.isEmpty()) {
@@ -47,6 +44,13 @@ class BluetoothManager (private val context: Context){
 
     }
 
+    fun connect(device: BluetoothDevice){
+        bluetoothGatt = device.connectGatt(context, false, gattCallback)
+    }
+
+    fun disconnect(){
+        bluetoothGatt?.disconnect()
+    }
 
     val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
@@ -74,8 +78,7 @@ class BluetoothManager (private val context: Context){
                 gatt.requestMtu(GATT_MAX_MTU_SIZE)
 
                 Handler(Looper.getMainLooper()).post {
-//                    startNewActivity(device.name, gatt.services)
-                    _connectionState.postValue(gatt.services)
+                    _connectionState.postValue(Pair(gatt.services, device.name))
                 }
             }
         }
@@ -121,12 +124,11 @@ class BluetoothManager (private val context: Context){
         return properties and property != 0
     }
 
-    public fun isWritable(characteristic: BluetoothGattCharacteristic?): Boolean?{
-
+    fun isWritable(characteristic: BluetoothGattCharacteristic?): Boolean?{
         return characteristic?.isWritable()
     }
 
-    public fun write(characteristic: BluetoothGattCharacteristic){
+    fun write(characteristic: BluetoothGattCharacteristic){
         if(characteristic.isWritable() == true){
             val message = "HELLO"
             writeCharacteristic(characteristic, message.toByteArray())

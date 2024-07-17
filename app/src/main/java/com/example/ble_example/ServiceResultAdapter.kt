@@ -48,7 +48,7 @@ class ServiceResultAdapter(
 
         private lateinit var charView : RecyclerView
         private val charList = mutableListOf<BluetoothGattCharacteristic>()
-        public val charResultAdapter: CharacteristicAdapter by lazy{
+        val charResultAdapter: CharacteristicAdapter by lazy{
             CharacteristicAdapter(charList, onClickListener)
         }
 
