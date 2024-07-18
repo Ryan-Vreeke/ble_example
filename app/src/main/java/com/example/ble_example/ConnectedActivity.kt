@@ -8,6 +8,7 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.annotation.UiThread
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.SimpleItemAnimator
@@ -19,14 +20,15 @@ object BluetoothServiceHolder {
 }
 
 class ConnectedActivity : AppCompatActivity() {
+    private val connectSheetFragment = ConnectDialogFragment()
+
     private var bm: BluetoothManager? = null
     private lateinit var binding: ConnectedBinding
     private lateinit var disconnectBtn: Button
     private val serviceList = mutableListOf<BluetoothGattService>()
     private val serviceResultAdapter: ServiceResultAdapter by lazy{
-        ServiceResultAdapter(serviceList){characteristic ->
+        ServiceResultAdapter(serviceList, supportFragmentManager, connectSheetFragment){characteristic ->
             Log.i("CharacteristicClick", "clicked ${characteristic.uuid.toString()}")
-            bm?.write(characteristic)
         }
     }
 
@@ -50,6 +52,14 @@ class ConnectedActivity : AppCompatActivity() {
             bm?.disconnect()
             finish()
         }
+
+        connectSheetFragment.sendMSG.observe(this, Observer {charMsgPair ->
+            Log.i("connectActivity", "sending: ${charMsgPair.second}")
+
+            val characteristic: BluetoothGattCharacteristic? = charMsgPair.first;
+            if(characteristic != null)
+                bm?.write(characteristic, charMsgPair.second);
+        } )
     }
 
     @UiThread

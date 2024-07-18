@@ -4,11 +4,17 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.TextView
+import androidx.fragment.app.FragmentManager
+import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.button.MaterialButton
 
 class CharacteristicAdapter(
     private val characteristics: List<BluetoothGattCharacteristic>,
+    private val fragmentManager: FragmentManager,
+    private val connectDialogFragment: ConnectDialogFragment,
     private val onClickListener:((characteristic: BluetoothGattCharacteristic) -> Unit)
 
 ) : RecyclerView.Adapter<CharacteristicAdapter.ViewHolder>(){
@@ -19,7 +25,7 @@ class CharacteristicAdapter(
             parent,
             false
         )
-        return CharacteristicAdapter.ViewHolder(view, onClickListener)
+        return CharacteristicAdapter.ViewHolder(view,fragmentManager, connectDialogFragment, onClickListener)
     }
 
     override fun getItemCount() = characteristics.size
@@ -31,12 +37,19 @@ class CharacteristicAdapter(
 
     class ViewHolder(
         private val view: View,
+        private val fragmentManager: FragmentManager,
+        private val connectDialogFragment: ConnectDialogFragment,
         private val onClickListener: ((characteristic: BluetoothGattCharacteristic) -> Unit)
     ): RecyclerView.ViewHolder(view){
+
         fun bind(characteristic: BluetoothGattCharacteristic){
+
             view.findViewById<TextView>(R.id.char_uuid).text = characteristic.uuid.toString()
             view.findViewById<TextView>(R.id.char_name).text = "Name"
             view.findViewById<TextView>(R.id.prop).text = getProperties(characteristic.properties)
+            view.findViewById<Button>(R.id.writebtn).setOnClickListener{
+                connectDialogFragment.show(fragmentManager, connectDialogFragment.tag)
+            }
 
 
             view.setOnClickListener{onClickListener.invoke(characteristic)}
@@ -47,15 +60,19 @@ class CharacteristicAdapter(
 
             if (properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) {
                 propertyList.add("Read")
+                view.findViewById<Button>(R.id.readbtn).visibility = View.VISIBLE
             }
             if (properties and BluetoothGattCharacteristic.PROPERTY_WRITE != 0) {
                 propertyList.add("Write")
+                view.findViewById<Button>(R.id.writebtn).visibility = View.VISIBLE
             }
             if (properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0) {
                 propertyList.add("Write Without Response")
+                view.findViewById<Button>(R.id.writebtn).visibility = View.VISIBLE
             }
             if (properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0) {
                 propertyList.add("Notify")
+                view.findViewById<Button>(R.id.subbtn).visibility = View.VISIBLE
             }
             if (properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0) {
                 propertyList.add("Indicate")

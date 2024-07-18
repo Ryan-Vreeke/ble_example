@@ -10,6 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.annotation.UiThread
+import androidx.fragment.app.FragmentManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.SimpleItemAnimator
@@ -18,6 +19,8 @@ import com.example.ble_example.databinding.ActivityMainBinding
 
 class ServiceResultAdapter(
     private val services: List<BluetoothGattService>,
+    private val fragmentManager: FragmentManager,
+    private val connectDialogFragment: ConnectDialogFragment,
     private val onClickListener: ((characteristic: BluetoothGattCharacteristic) -> Unit)
 ) : RecyclerView.Adapter<ServiceResultAdapter.ViewHolder>() {
 
@@ -28,7 +31,7 @@ class ServiceResultAdapter(
             parent,
             false
         )
-        return ViewHolder(view, onClickListener)
+        return ViewHolder(view, fragmentManager, connectDialogFragment, onClickListener)
     }
 
     override fun getItemCount(): Int {
@@ -42,6 +45,8 @@ class ServiceResultAdapter(
 
     class ViewHolder(
         private val view: View,
+        private val fragmentManager: FragmentManager,
+        private val connectDialogFragment: ConnectDialogFragment,
         private val onClickListener: ((characteristic: BluetoothGattCharacteristic) -> Unit)
     ) : RecyclerView.ViewHolder(view) {
         private var expand = false
@@ -49,7 +54,7 @@ class ServiceResultAdapter(
         private lateinit var charView : RecyclerView
         private val charList = mutableListOf<BluetoothGattCharacteristic>()
         val charResultAdapter: CharacteristicAdapter by lazy{
-            CharacteristicAdapter(charList, onClickListener)
+            CharacteristicAdapter(charList, fragmentManager, connectDialogFragment, onClickListener)
         }
 
         fun bind(service: BluetoothGattService) {

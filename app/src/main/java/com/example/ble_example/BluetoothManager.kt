@@ -128,12 +128,12 @@ class BluetoothManager (private val context: Context){
         return characteristic?.isWritable()
     }
 
-    fun write(characteristic: BluetoothGattCharacteristic){
-        if(characteristic.isWritable() == true){
-            val message = "HELLO"
-            writeCharacteristic(characteristic, message.toByteArray())
-            Log.i("GattWrite", "Message sent");
-        }
+    fun write(characteristic: BluetoothGattCharacteristic, message: String){
+        if(characteristic.isWritable() == false)
+            return
+
+        writeCharacteristic(characteristic, message.toByteArray())
+        Log.i("GattWrite", "Message sent");
     }
 
 

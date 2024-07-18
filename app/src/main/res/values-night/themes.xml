@@ -3,5 +3,11 @@
     <style name="Base.Theme.Ble_example" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your dark theme here. -->
         <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary" type="color">@color/purple_200</item>
+        <item name="colorPrimaryVariant" type="color">@color/purple_700</item>
+        <item name="colorOnPrimary" type="color">@color/black</item>
+        <!-- Ensure this color is set to control icon color dynamically -->
+        <item name="colorControlNormal" type="color">@color/iconColor</item>
     </style>
 </resources>
